@@ -38,7 +38,7 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 	for {
 		select {
 		case msg := <-readCh:
-			instrumentChMap[msg.instrumentName] = msg.channel
+			instrumentChMap[msg.instrumentName] = msg.channel //3
 		default:
 			in, err := readInput(conn)
 			if err != nil {
@@ -56,7 +56,14 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 				fmt.Fprintf(os.Stderr, "default")
 				fmt.Fprintf(os.Stderr, "Got order: %c %v x %v @ %v ID: %v\n",
 					in.orderType, in.instrument, in.count, in.price, in.orderId)
-				writeCh <- in.instrument
+				write, ok := instrumentChMap[in.instrument] 
+				if (!ok) {
+					writeCh <- in.instrument //1
+					newCh := <- readCh
+					instrumentChMap[newCh.instrumentName] = newCh.channel
+					write = newCh.channel
+				}
+				write <- in //4
 				//outputOrderAdded(in, GetCurrentTimestamp())
 
 			}
@@ -183,6 +190,7 @@ func readChannel(ch chan input) {
 	for {
 		select {
 			case inputVar := <-ch:
+			fmt.Fprintf(os.Stderr, "\nActually Read from channel\n")
 			handleOrder(inputVar, tickerSlice)
 	  }
 	}
