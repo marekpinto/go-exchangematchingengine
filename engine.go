@@ -20,14 +20,6 @@ type CommandTuple struct {
 	exId   uint32
 }
 
-type input struct {
-	orderType  inputType
-	orderId    uint32
-	price      uint32
-	count      uint32
-	instrument string
-}
-
 func (e *Engine) accept(ctx context.Context, conn net.Conn, writeCh chan <- string, newClientCh chan <- chan InstrumentChannel) {
 	go func() {
 		<-ctx.Done()
@@ -172,19 +164,10 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 		return amt
 	
 
-    default:
-	    found := false
-	    in := input{cmd, activeID, price, count, ticker}
-	    for i := 0; i<len(*tickerSlice); i++ {
-		    if ((*tickerSlide)[i].cmd == activeID) {
-			outputOrderDeleted(in, true, GetCurrentTimeStamp())
-			found = true
-			break
-		}
+    	default:
+			fmt.Fprintf(os.Stderr, "Error in findMatch")
+			return 0
 	}
-	if (!found) {
-		outputOrderDeleted(in, false, GetCurrentTimeStamp())
-    }
 }
 
 func handleOrder(in input, tickerSlice *[]CommandTuple) {
@@ -193,6 +176,21 @@ func handleOrder(in input, tickerSlice *[]CommandTuple) {
 	id := in.orderId
 	price := in.price
 	num := in.count
+	found := false
+	if cmd == 'C' {
+		for i := 0; i<len(*tickerSlice); i++ {
+		    if ((*tickerSlice)[i].id == id) {
+				outputOrderDeleted(in, true, GetCurrentTimestamp())
+				found = true
+				remove(*tickerSlice, i)
+				break
+			}
+		}
+		if !found {
+			outputOrderDeleted(in, false, GetCurrentTimestamp())
+		}
+		return
+	}
 	for num > 0 {
 		prevNum := num
 		num = findMatch(cmd, price, num, id, tickerSlice, in.instrument)
