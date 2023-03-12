@@ -20,17 +20,21 @@ type CommandTuple struct {
 	exId   uint32
 }
 
-func (e *Engine) accept(ctx context.Context, conn net.Conn) {
+func (e *Engine) accept(ctx context.Context, conn net.Conn, writeCh chan <- string, readCh <- chan instrument) {
 	go func() {
 		<-ctx.Done()
 		conn.Close()
 	}()
-	go handleConn(conn)
+	go handleConn(conn, writeCh, readCh)
 }
 
-func handleConn(conn net.Conn) {
+func handleConn(conn net.Conn, writeCh chan <- string, readCh <- chan instrument) {
 	defer conn.Close()
 	for {
+		select {
+		case msg := <-readCh:
+			//update hashmap if there is something to read
+		default:
 		in, err := readInput(conn)
 		if err != nil {
 			if err != io.EOF {
@@ -48,6 +52,7 @@ func handleConn(conn net.Conn) {
 			outputOrderAdded(in, GetCurrentTimestamp())
 		}
 		outputOrderExecuted(123, 124, 1, 2000, 10, GetCurrentTimestamp())
+		}
 	}
 }
 
