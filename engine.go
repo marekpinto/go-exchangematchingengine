@@ -156,3 +156,34 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, times
         fmt.Println("Invalid command type")
     }
 }
+
+func handleOrder(in input) {
+	cmd := in.orderType
+	id := in.orderId
+	price := in.price
+	instrument := in.instrument
+	num := in.count
+	for num > 0 {
+		prevNum := num
+		num = findMatch(cmd, price, num, id, GetCurrentTimestamp())
+		if (num == prevNum) {
+			break
+		}
+	}
+
+	if (num != 0) {
+		CommandTuple tup := {cmd, id, price, num, 0}
+		// tickerSlice = append(tickerSlice, tup)
+		outputOrderAdded(in, GetCurrentTimestamp())
+	}
+
+}
+
+func readInput(ch chan interface{}) {
+	for {
+		select {
+			case input := <-ch:
+			handleOrder(input)
+	  }
+	}
+}
