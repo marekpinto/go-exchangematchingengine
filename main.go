@@ -10,18 +10,10 @@ import (
 	"syscall"
 )
 
-type instrument struct {
+type InstrumentChannel struct {
     instrumentName string
-    channel chan CommandTuple
+    channel chan input
 }
-
-/*
-type CommandTuple struct {
-	cmd inputType
-	id uint32 
-	price uint32 
-	count uint32 
-} */
 
 func handleSigs(cancel func()) {
 	sigs := make(chan os.Signal, 1)
@@ -57,13 +49,28 @@ func main() {
 		}
 	}()
 
-	instrumentChMap := make(map[string]chan)
-	clientWriteCh := chan instrument
-	clientReadCh := chan string
+	instrumentChMap := make(map[string] chan input)
+	clientWriteChSlice := []chan instrument{}
+	clientReadCh := make(chan string)
+	newClientCh := make(chan chan instrument)
 
 	go func() {
 		for {
 			select {
+			case instrument := <-clientReadCh:
+				instrumentCh := make(chan input)
+				//go makeInstrument(instrumentCh)
+				instrumentChMap[instrument] = instrumentCh
+				for _, client := range clientWriteChSlice {
+					client <- InstrumentChannel{instrument, instrumentCh}
+				}
+				
+			case newWriteCh := <- newClientCh:
+				clientWriteChSlice = clientWriteChSlice.append(clientWriteChSlice, newWriteCh)
+				
+				for instrument, instrumentCh := range instrumentChMap {
+					newWriteCh <- InstrumentChannel{instrument, instrumentCh}
+				}
 			}
 		}
 	}()
@@ -75,6 +82,6 @@ func main() {
 			log.Fatal("accept error: ", err)
 		}
 
-		e.accept(ctx, conn, clientReadCh, clientWriteCh)
+		e.accept(ctx, conn, clientReadCh, newClientCh)
 	}
 }

@@ -20,39 +20,44 @@ type CommandTuple struct {
 	exId   uint32
 }
 
-func (e *Engine) accept(ctx context.Context, conn net.Conn, writeCh chan <- string, readCh <- chan instrument) {
+func (e *Engine) accept(ctx context.Context, conn net.Conn, writeCh chan <- string, newClientCh chan <- chan instrument) {
 	go func() {
 		<-ctx.Done()
 		conn.Close()
 	}()
-	go handleConn(conn, writeCh, readCh)
+	go handleConn(conn, writeCh, newClientCh)
 }
 
-func handleConn(conn net.Conn, writeCh chan <- string, readCh <- chan instrument) {
+func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan instrument) {
 	defer conn.Close()
+	instrumentChMap := make(map[string] chan input)
+
+	readCh := make(chan instrument)
+	newClientCh <- readCh
+
 	for {
 		select {
 		case msg := <-readCh:
-			//update hashmap if there is something to read
+			instrumentChMap[msg.instrumentName] = msg.channel
 		default:
-		in, err := readInput(conn)
-		if err != nil {
-			if err != io.EOF {
-				_, _ = fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+			in, err := readInput(conn)
+			if err != nil {
+				if err != io.EOF {
+					_, _ = fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+				}
+				return
 			}
-			return
-		}
-		switch in.orderType {
-		case inputCancel:
-			fmt.Fprintf(os.Stderr, "Got cancel ID: %v\n", in.orderId)
-			outputOrderDeleted(in, true, GetCurrentTimestamp())
-		default:
-			fmt.Fprintf(os.Stderr, "Got order: %c %v x %v @ %v ID: %v\n",
-				in.orderType, in.instrument, in.count, in.price, in.orderId)
-			outputOrderAdded(in, GetCurrentTimestamp())
-		}
-		outputOrderExecuted(123, 124, 1, 2000, 10, GetCurrentTimestamp())
-		}
+			switch in.orderType {
+			case inputCancel:
+				fmt.Fprintf(os.Stderr, "Got cancel ID: %v\n", in.orderId)
+				outputOrderDeleted(in, true, GetCurrentTimestamp())
+			default:
+				fmt.Fprintf(os.Stderr, "Got order: %c %v x %v @ %v ID: %v\n",
+					in.orderType, in.instrument, in.count, in.price, in.orderId)
+				outputOrderAdded(in, GetCurrentTimestamp())
+			}
+			outputOrderExecuted(123, 124, 1, 2000, 10, GetCurrentTimestamp())
+			}
 	}
 }
 
