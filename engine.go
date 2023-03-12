@@ -39,7 +39,7 @@ func (e *Engine) accept(ctx context.Context, conn net.Conn, writeCh chan <- stri
 func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan InstrumentChannel) {
 	defer conn.Close()
 	instrumentChMap := make(map[string] chan input)
-
+	idMap := make(map[uint32] string)
 	readCh := make(chan InstrumentChannel)
 	newClientCh <- readCh
 
@@ -59,8 +59,12 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 			switch in.orderType {
 			case inputCancel:
 				fmt.Fprintf(os.Stderr, "Got cancel ID: %v\n", in.orderId)
-				outputOrderDeleted(in, true, GetCurrentTimestamp())
+				//outputOrderDeleted(in, true, GetCurrentTimestamp())
+				instrument := idMap[in.orderId]
+				write := instrumentChMap[instrument]
+				write <- in
 			default:
+				idMap[in.orderId] = in.instrument
 				fmt.Fprintf(os.Stderr, "default")
 				fmt.Fprintf(os.Stderr, "Got order: %c %v x %v @ %v ID: %v\n",
 					in.orderType, in.instrument, in.count, in.price, in.orderId)
