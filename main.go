@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 type InstrumentChannel struct {
@@ -51,13 +52,14 @@ func main() {
 
 	instrumentChMap := make(map[string] chan input)
 	clientWriteChSlice := []chan InstrumentChannel{}
-	clientReadCh := make(chan string)
-	newClientCh := make(chan chan InstrumentChannel)
-
+	clientReadCh := make(chan string, 20)
+	newClientCh := make(chan chan InstrumentChannel, 20)
+	fmt.Fprintf(os.Stderr, "calling goFunc")
 	go func() {
 		for {
 			select {
 			case instrument := <-clientReadCh:
+				fmt.Fprintf(os.Stderr, "INSTRUMENT case met")
 				instrumentCh := make(chan input, 20)
 				go readChannel(instrumentCh)
 				instrumentChMap[instrument] = instrumentCh
@@ -66,11 +68,16 @@ func main() {
 				}
 
 			case newWriteCh := <- newClientCh:
+				fmt.Fprintf(os.Stderr, "\nStart of new Write Case\n")
 				clientWriteChSlice = append(clientWriteChSlice, newWriteCh)
 				
 				for instrument, instrumentCh := range instrumentChMap {
 					newWriteCh <- InstrumentChannel{instrument, instrumentCh}
 				}
+				fmt.Fprintf(os.Stderr, "\nEnd of new Write Case\n")
+			default:
+				//fmt.Fprintf(os.Stderr, "In main for select")
+				time.Sleep(time.Millisecond)
 			}
 		}
 	}()

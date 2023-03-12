@@ -47,19 +47,22 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 				}
 				return
 			}
+			fmt.Fprintf(os.Stderr, "before switch")
 			switch in.orderType {
 			case inputCancel:
 				fmt.Fprintf(os.Stderr, "Got cancel ID: %v\n", in.orderId)
 				outputOrderDeleted(in, true, GetCurrentTimestamp())
 			default:
+				fmt.Fprintf(os.Stderr, "default")
 				fmt.Fprintf(os.Stderr, "Got order: %c %v x %v @ %v ID: %v\n",
 					in.orderType, in.instrument, in.count, in.price, in.orderId)
-				writeCh := instrumentChMap[in.instrument]
-				writeCh <- in
+				// writeCh := instrumentChMap[in.instrument]
+				writeCh <- in.instrument
+				fmt.Print("Default")
 				//outputOrderAdded(in, GetCurrentTimestamp())
 
 			}
-			outputOrderExecuted(123, 124, 1, 2000, 10, GetCurrentTimestamp())
+			
 			}
 	}
 }
@@ -69,6 +72,7 @@ func GetCurrentTimestamp() int64 {
 }
 
 func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, tickerSlice []CommandTuple) uint32 {
+	fmt.Fprintf(os.Stderr, "findMatch")
     switch cmd {
 		
     case inputBuy: {
@@ -154,6 +158,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 }
 
 func handleOrder(in input, tickerSlice []CommandTuple) {
+	fmt.Fprintf(os.Stderr, "handleOrder")
 	cmd := in.orderType
 	id := in.orderId
 	price := in.price
@@ -175,6 +180,7 @@ func handleOrder(in input, tickerSlice []CommandTuple) {
 }
 
 func readChannel(ch chan input) {
+	fmt.Fprintf(os.Stderr, "readChannel")
 	tickerSlice := []CommandTuple{}
 	for {
 		select {
