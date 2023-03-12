@@ -93,7 +93,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 			if (amt >= tickerSlice[bestIndex].count) {
 				amt = amt - tickerSlice[bestIndex].count
 				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, sellPrice, tickerSlide[bestIndex].count, GetCurrentTimestamp())
-				// tickerSlice.remove(bestIndex)
+				tickerSlice = remove(tickerSlice, bestIndex)
 			}
 
 			// Resting order has higher count
@@ -116,7 +116,6 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 		buyPrice := price
 		bestIndex := -1
 		amt := count
-		// tickerSlice := slice stored in ticker goroutine
 
 		// Find best match
 		for i := 0; i < len(tickerSlice); i++ {
@@ -135,7 +134,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 			if (amt >= tickerSlice[bestIndex].count) {
 				amt = amt - tickerSlice[bestIndex].count
 				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, sellPrice, tickerSlide[bestIndex].count, GetCurrentTimestamp())
-				// tickerSlice.remove(bestIndex)
+				tickerSlice = remove(tickerSlice, bestIndex)
 			}
 
 			// Resting order has higher count
@@ -189,4 +188,8 @@ func readChannel(ch chan input) {
 			handleOrder(inputVar, tickerSlice)
 	  }
 	}
+}
+
+func remove(slice []CommandTuple, index int) []CommandTuple {
+    return append(slice[:index], slice[index+1:]...)
 }
