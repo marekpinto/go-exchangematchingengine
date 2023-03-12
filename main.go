@@ -50,9 +50,9 @@ func main() {
 	}()
 
 	instrumentChMap := make(map[string] chan input)
-	clientWriteChSlice := []chan instrument{}
+	clientWriteChSlice := []chan InstrumentChannel{}
 	clientReadCh := make(chan string)
-	newClientCh := make(chan chan instrument)
+	newClientCh := make(chan chan InstrumentChannel)
 
 	go func() {
 		for {
@@ -66,7 +66,7 @@ func main() {
 				}
 
 			case newWriteCh := <- newClientCh:
-				clientWriteChSlice = clientWriteChSlice.append(clientWriteChSlice, newWriteCh)
+				clientWriteChSlice = append(clientWriteChSlice, newWriteCh)
 				
 				for instrument, instrumentCh := range instrumentChMap {
 					newWriteCh <- InstrumentChannel{instrument, instrumentCh}

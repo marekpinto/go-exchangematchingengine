@@ -20,7 +20,7 @@ type CommandTuple struct {
 	exId   uint32
 }
 
-func (e *Engine) accept(ctx context.Context, conn net.Conn, writeCh chan <- string, newClientCh chan <- chan instrument) {
+func (e *Engine) accept(ctx context.Context, conn net.Conn, writeCh chan <- string, newClientCh chan <- chan InstrumentChannel) {
 	go func() {
 		<-ctx.Done()
 		conn.Close()
@@ -28,11 +28,11 @@ func (e *Engine) accept(ctx context.Context, conn net.Conn, writeCh chan <- stri
 	go handleConn(conn, writeCh, newClientCh)
 }
 
-func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan instrument) {
+func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan InstrumentChannel) {
 	defer conn.Close()
 	instrumentChMap := make(map[string] chan input)
 
-	readCh := make(chan instrument)
+	readCh := make(chan InstrumentChannel)
 	newClientCh <- readCh
 
 	for {
@@ -68,7 +68,7 @@ func GetCurrentTimestamp() int64 {
 	return time.Now().UnixNano()
 }
 
-func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, tickerSlice []CommandTuple) {
+func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, tickerSlice []CommandTuple) uint32 {
     switch cmd {
 		
     case inputBuy: {
@@ -78,7 +78,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 
 		// Find best match
 		for i := 0; i < len(tickerSlice); i++ {
-			if (tickerSlide[i].cmd == inputSell && tickerSlice[i].price <= price) {
+			if (tickerSlice[i].cmd == inputSell && tickerSlice[i].price <= price) {
 				sellPrice = tickerSlice[i].price
 				bestIndex = i
 			}
@@ -90,16 +90,13 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 			tickerSlice[bestIndex].exId += 1
 
 			// Active order has higher count
-			if (amt >= tickerSlice[bestIndex].count) {
+			if amt >= tickerSlice[bestIndex].count {
 				amt = amt - tickerSlice[bestIndex].count
-				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, sellPrice, tickerSlide[bestIndex].count, GetCurrentTimestamp())
+				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, tickerSlice[bestIndex].exId, sellPrice, tickerSlice[bestIndex].count, GetCurrentTimestamp())
 				tickerSlice = remove(tickerSlice, bestIndex)
-			}
-
-			// Resting order has higher count
-			else {
+			} else {
 				tickerSlice[bestIndex].count -= amt
-				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, sellPrice, amt, GetCurrentTimestamp())
+				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, tickerSlice[bestIndex].exId, sellPrice, amt, GetCurrentTimestamp())
 				amt = 0
 			}
 		}
@@ -119,7 +116,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 
 		// Find best match
 		for i := 0; i < len(tickerSlice); i++ {
-			if (tickerSlide[i].cmd == inputBuy && tickerSlice[i].price >= price) {
+			if (tickerSlice[i].cmd == inputBuy && tickerSlice[i].price >= price) {
 				buyPrice = tickerSlice[i].price
 				bestIndex = i
 			}
@@ -133,14 +130,11 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 			// Active order has higher count
 			if (amt >= tickerSlice[bestIndex].count) {
 				amt = amt - tickerSlice[bestIndex].count
-				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, sellPrice, tickerSlide[bestIndex].count, GetCurrentTimestamp())
+				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, tickerSlice[bestIndex].exId, buyPrice, tickerSlice[bestIndex].count, GetCurrentTimestamp())
 				tickerSlice = remove(tickerSlice, bestIndex)
-			}
-
-			// Resting order has higher count
-			else {
+			} else {
 				tickerSlice[bestIndex].count -= amt
-				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, sellPrice, amt, GetCurrentTimestamp())
+				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, tickerSlice[bestIndex].exId, buyPrice, amt, GetCurrentTimestamp())
 				amt = 0
 			}
 		}
@@ -155,6 +149,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 
     default:
         fmt.Println("Invalid command type")
+		return 0
     }
 }
 
@@ -162,7 +157,6 @@ func handleOrder(in input, tickerSlice []CommandTuple) {
 	cmd := in.orderType
 	id := in.orderId
 	price := in.price
-	instrument := in.instrument
 	num := in.count
 	for num > 0 {
 		prevNum := num
@@ -173,7 +167,7 @@ func handleOrder(in input, tickerSlice []CommandTuple) {
 	}
 
 	if (num != 0) {
-		CommandTuple tup := {cmd, id, price, num, 0}
+		tup := CommandTuple{cmd, id, price, num, 0}
 		tickerSlice = append(tickerSlice, tup)
 		outputOrderAdded(in, GetCurrentTimestamp())
 	}
