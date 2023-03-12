@@ -75,22 +75,23 @@ func GetCurrentTimestamp() int64 {
 	return time.Now().UnixNano()
 }
 
-func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, tickerSlice []CommandTuple) uint32 {
+func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, tickerSlice *[]CommandTuple) uint32 {
 	fmt.Fprintf(os.Stderr, "findMatch\n")
 	fmt.Fprintf(os.Stderr, "%s", cmd)
 
     switch cmd {
 		
     case 'B': 
-		
+		fmt.Fprintf(os.Stderr, "reached buy case")
 		sellPrice := price
 		bestIndex := -1
 		amt := count
 
 		// Find best match
-		for i := 0; i < len(tickerSlice); i++ {
-			if (tickerSlice[i].cmd == inputSell && tickerSlice[i].price <= price) {
-				sellPrice = tickerSlice[i].price
+
+		for i := 0; i < len(*tickerSlice); i++ {
+			if ((*tickerSlice)[i].cmd == 'S' && (*tickerSlice)[i].price <= price) {
+				sellPrice = (*tickerSlice)[i].price
 				bestIndex = i
 			}
 		}
@@ -98,16 +99,16 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 		// If a match is found...
 		if bestIndex != -1 {
 
-			tickerSlice[bestIndex].exId += 1
+			(*tickerSlice)[bestIndex].exId += 1
 
 			// Active order has higher count
-			if amt >= tickerSlice[bestIndex].count {
-				amt = amt - tickerSlice[bestIndex].count
-				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, tickerSlice[bestIndex].exId, sellPrice, tickerSlice[bestIndex].count, GetCurrentTimestamp())
-				tickerSlice = remove(tickerSlice, bestIndex)
+			if amt >= (*tickerSlice)[bestIndex].count {
+				amt = amt - (*tickerSlice)[bestIndex].count
+				outputOrderExecuted((*tickerSlice)[bestIndex].id, activeID, (*tickerSlice)[bestIndex].exId, sellPrice, (*tickerSlice)[bestIndex].count, GetCurrentTimestamp())
+				*tickerSlice = remove(*tickerSlice, bestIndex)
 			} else {
-				tickerSlice[bestIndex].count -= amt
-				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, tickerSlice[bestIndex].exId, sellPrice, amt, GetCurrentTimestamp())
+				(*tickerSlice)[bestIndex].count -= amt
+				outputOrderExecuted((*tickerSlice)[bestIndex].id, activeID, (*tickerSlice)[bestIndex].exId, sellPrice, amt, GetCurrentTimestamp())
 				amt = 0
 			}
 		}
@@ -126,9 +127,10 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 		amt := count
 
 		// Find best match
-		for i := 0; i < len(tickerSlice); i++ {
-			if (tickerSlice[i].cmd == inputBuy && tickerSlice[i].price >= price) {
-				buyPrice = tickerSlice[i].price
+		fmt.Fprintf(os.Stderr, "Length before for loop: %d", len(*tickerSlice))
+		for i := 0; i < len(*tickerSlice); i++ {
+			if ((*tickerSlice)[i].cmd == 'B' && (*tickerSlice)[i].price >= price) {
+				buyPrice = (*tickerSlice)[i].price
 				bestIndex = i
 			}
 		}
@@ -136,16 +138,16 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 		// If a match is found...
 		if bestIndex != -1 {
 
-			tickerSlice[bestIndex].exId += 1
+			(*tickerSlice)[bestIndex].exId += 1
 
 			// Active order has higher count
-			if (amt >= tickerSlice[bestIndex].count) {
-				amt = amt - tickerSlice[bestIndex].count
-				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, tickerSlice[bestIndex].exId, buyPrice, tickerSlice[bestIndex].count, GetCurrentTimestamp())
-				tickerSlice = remove(tickerSlice, bestIndex)
+			if (amt >= (*tickerSlice)[bestIndex].count) {
+				amt = amt - (*tickerSlice)[bestIndex].count
+				outputOrderExecuted((*tickerSlice)[bestIndex].id, activeID, (*tickerSlice)[bestIndex].exId, buyPrice, (*tickerSlice)[bestIndex].count, GetCurrentTimestamp())
+				*tickerSlice = remove(*tickerSlice, bestIndex)
 			} else {
-				tickerSlice[bestIndex].count -= amt
-				outputOrderExecuted(tickerSlice[bestIndex].id, activeID, tickerSlice[bestIndex].exId, buyPrice, amt, GetCurrentTimestamp())
+				(*tickerSlice)[bestIndex].count -= amt
+				outputOrderExecuted((*tickerSlice)[bestIndex].id, activeID, (*tickerSlice)[bestIndex].exId, buyPrice, amt, GetCurrentTimestamp())
 				amt = 0
 			}
 		}
@@ -164,7 +166,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
     }
 }
 
-func handleOrder(in input, tickerSlice []CommandTuple) {
+func handleOrder(in input, tickerSlice *[]CommandTuple) {
 	fmt.Fprintf(os.Stderr, "handleOrder")
 	cmd := in.orderType
 	id := in.orderId
@@ -180,7 +182,9 @@ func handleOrder(in input, tickerSlice []CommandTuple) {
 
 	if (num != 0) {
 		tup := CommandTuple{cmd, id, price, num, 0}
-		tickerSlice = append(tickerSlice, tup)
+		fmt.Fprintf(os.Stderr, "Before appending length: %s", len(*tickerSlice))
+		*tickerSlice = append(*tickerSlice, tup)
+		fmt.Fprintf(os.Stderr, "After Appending Length: %s", len(*tickerSlice))
 		outputOrderAdded(in, GetCurrentTimestamp())
 	}
 
@@ -193,7 +197,7 @@ func readChannel(ch chan input) {
 		select {
 			case inputVar := <-ch:
 			fmt.Fprintf(os.Stderr, "\nActually Read from channel\n")
-			handleOrder(inputVar, tickerSlice)
+			handleOrder(inputVar, &tickerSlice)
 	  }
 	}
 }
