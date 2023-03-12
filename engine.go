@@ -64,7 +64,6 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 					write = newCh.channel
 				}
 				write <- in //4
-				//outputOrderAdded(in, GetCurrentTimestamp())
 
 			}
 			
@@ -77,10 +76,13 @@ func GetCurrentTimestamp() int64 {
 }
 
 func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, tickerSlice []CommandTuple) uint32 {
-	fmt.Fprintf(os.Stderr, "findMatch")
+	fmt.Fprintf(os.Stderr, "findMatch\n")
+	fmt.Fprintf(os.Stderr, "%s", cmd)
+
     switch cmd {
 		
-    case inputBuy: {
+    case 'B': 
+		
 		sellPrice := price
 		bestIndex := -1
 		amt := count
@@ -116,9 +118,9 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 			if amt < prev, order matched with resting and looks again
 		*/
 		return amt
-	}
+	
         
-    case inputSell: {
+    case 'S': 
 		buyPrice := price
 		bestIndex := -1
 		amt := count
@@ -154,7 +156,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 			if amt < prev, order matched with resting and looks again
 		*/
 		return amt
-	}
+	
 
     default:
         fmt.Println("Invalid command type")
