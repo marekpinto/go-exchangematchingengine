@@ -12,17 +12,25 @@ import (
 
 type Engine struct{}
 
-func (e *Engine) accept(ctx context.Context, conn net.Conn) {
+func (e *Engine) accept(ctx context.Context, conn net.Conn, writeCh chan <- string, readCh <- chan instrument) {
 	go func() {
 		<-ctx.Done()
 		conn.Close()
 	}()
-	go handleConn(conn)
+	go handleConn(conn, writeCh chan string, readCh chan instrument)
 }
 
-func handleConn(conn net.Conn) {
+func handleConn(conn net.Conn, writeCh chan <- instrument, readCh <- chan string) {
 	defer conn.Close()
 	for {
+		select {
+		case msg := <-ch:
+			fmt.Printf("Received message %d\n", msg)
+			// Do something with the message
+		default:
+			// If there is no message to read, sleep for a bit
+			time.Sleep(100 * time.Millisecond)
+		}
 		in, err := readInput(conn)
 		if err != nil {
 			if err != io.EOF {

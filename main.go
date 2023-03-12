@@ -10,6 +10,19 @@ import (
 	"syscall"
 )
 
+type instrument struct {
+    instrumentName string
+    channel chan CommandTuple
+}
+
+/*
+type CommandTuple struct {
+	cmd inputType
+	id uint32 
+	price uint32 
+	count uint32 
+} */
+
 func handleSigs(cancel func()) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -44,6 +57,17 @@ func main() {
 		}
 	}()
 
+	instrumentChMap := make(map[string]chan)
+	clientWriteCh := chan instrument
+	clientReadCh := chan string
+
+	go func() {
+		for {
+			select {
+			}
+		}
+	}()
+
 	var e Engine
 	for {
 		conn, err := l.Accept()
@@ -51,6 +75,6 @@ func main() {
 			log.Fatal("accept error: ", err)
 		}
 
-		e.accept(ctx, conn)
+		e.accept(ctx, conn, clientReadCh, clientWriteCh)
 	}
 }
