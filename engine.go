@@ -54,7 +54,8 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 			default:
 				fmt.Fprintf(os.Stderr, "Got order: %c %v x %v @ %v ID: %v\n",
 					in.orderType, in.instrument, in.count, in.price, in.orderId)
-				outputOrderAdded(in, GetCurrentTimestamp())
+				//outputOrderAdded(in, GetCurrentTimestamp())
+
 			}
 			outputOrderExecuted(123, 124, 1, 2000, 10, GetCurrentTimestamp())
 			}
@@ -65,14 +66,13 @@ func GetCurrentTimestamp() int64 {
 	return time.Now().UnixNano()
 }
 
-func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, timestamp int64) {
+func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, tickerSlice []CommandTuple) {
     switch cmd {
 		
     case inputBuy: {
 		sellPrice := price
 		bestIndex := -1
 		amt := count
-		// tickerSlice := slice stored in ticker goroutine
 
 		// Find best match
 		for i := 0; i < len(tickerSlice); i++ {
@@ -118,7 +118,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, times
 
 		// Find best match
 		for i := 0; i < len(tickerSlice); i++ {
-			if (tickerSlide[i].cmd == inputSell && tickerSlice[i].price >= price) {
+			if (tickerSlide[i].cmd == inputBuy && tickerSlice[i].price >= price) {
 				buyPrice = tickerSlice[i].price
 				bestIndex = i
 			}
@@ -157,7 +157,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, times
     }
 }
 
-func handleOrder(in input) {
+func handleOrder(in input, tickerSlice []CommandTuple) {
 	cmd := in.orderType
 	id := in.orderId
 	price := in.price
@@ -165,7 +165,7 @@ func handleOrder(in input) {
 	num := in.count
 	for num > 0 {
 		prevNum := num
-		num = findMatch(cmd, price, num, id, GetCurrentTimestamp())
+		num = findMatch(cmd, price, num, id, tickerSlice)
 		if (num == prevNum) {
 			break
 		}
@@ -173,17 +173,18 @@ func handleOrder(in input) {
 
 	if (num != 0) {
 		CommandTuple tup := {cmd, id, price, num, 0}
-		// tickerSlice = append(tickerSlice, tup)
+		tickerSlice = append(tickerSlice, tup)
 		outputOrderAdded(in, GetCurrentTimestamp())
 	}
 
 }
 
-func readInput(ch chan interface{}) {
+func readChannel(ch chan input) {
+	tickerSlice := []CommandTuple{}
 	for {
 		select {
-			case input := <-ch:
-			handleOrder(input)
+			case inputVar := <-ch:
+			handleOrder(inputVar, tickerSlice)
 	  }
 	}
 }

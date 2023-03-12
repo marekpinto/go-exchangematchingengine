@@ -59,12 +59,12 @@ func main() {
 			select {
 			case instrument := <-clientReadCh:
 				instrumentCh := make(chan input)
-				//go makeInstrument(instrumentCh)
+				go readChannel(instrumentCh)
 				instrumentChMap[instrument] = instrumentCh
 				for _, client := range clientWriteChSlice {
 					client <- InstrumentChannel{instrument, instrumentCh}
 				}
-				
+
 			case newWriteCh := <- newClientCh:
 				clientWriteChSlice = clientWriteChSlice.append(clientWriteChSlice, newWriteCh)
 				
