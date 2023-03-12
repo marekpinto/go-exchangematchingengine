@@ -54,8 +54,7 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 			default:
 				fmt.Fprintf(os.Stderr, "Got order: %c %v x %v @ %v ID: %v\n",
 					in.orderType, in.instrument, in.count, in.price, in.orderId)
-				writeCh := instrumentChMap[in.instrument]
-				writeCh <- in
+				writeCh <- in.instrument
 				//outputOrderAdded(in, GetCurrentTimestamp())
 
 			}
