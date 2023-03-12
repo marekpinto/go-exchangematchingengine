@@ -182,7 +182,7 @@ func handleOrder(in input, tickerSlice *[]CommandTuple) {
 		    if ((*tickerSlice)[i].id == id) {
 				outputOrderDeleted(in, true, GetCurrentTimestamp())
 				found = true
-				remove(*tickerSlice, i)
+				*tickerSlice = remove(*tickerSlice, i)
 				break
 			}
 		}
