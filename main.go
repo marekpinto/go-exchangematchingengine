@@ -52,8 +52,8 @@ func main() {
 
 	instrumentChMap := make(map[string] chan inputPackage)
 	clientWriteChSlice := []chan InstrumentChannel{}
-	clientReadCh := make(chan string, 20)
-	newClientCh := make(chan chan InstrumentChannel, 20)
+	clientReadCh := make(chan string, 100)
+	newClientCh := make(chan chan InstrumentChannel, 45)
 	fmt.Fprintf(os.Stderr, "calling goFunc")
 	go func() {
 		for {

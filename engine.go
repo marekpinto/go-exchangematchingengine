@@ -37,7 +37,7 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 	defer conn.Close()
 	instrumentChMap := make(map[string] chan inputPackage)
 	idMap := make(map[uint32] string)
-	readCh := make(chan InstrumentChannel)
+	readCh := make(chan InstrumentChannel, 100)
 	newClientCh <- readCh
 
 	for {
