@@ -20,6 +20,11 @@ type CommandTuple struct {
 	exId   uint32
 }
 
+type inputPackage struct {
+	in input
+	timestamp int64
+}
+
 func (e *Engine) accept(ctx context.Context, conn net.Conn, writeCh chan <- string, newClientCh chan <- chan InstrumentChannel) {
 	go func() {
 		<-ctx.Done()
@@ -30,7 +35,7 @@ func (e *Engine) accept(ctx context.Context, conn net.Conn, writeCh chan <- stri
 
 func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan InstrumentChannel) {
 	defer conn.Close()
-	instrumentChMap := make(map[string] chan input)
+	instrumentChMap := make(map[string] chan inputPackage)
 	idMap := make(map[uint32] string)
 	readCh := make(chan InstrumentChannel)
 	newClientCh <- readCh
@@ -54,20 +59,20 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 				//outputOrderDeleted(in, true, GetCurrentTimestamp())
 				instrument := idMap[in.orderId]
 				write := instrumentChMap[instrument]
-				write <- in
+				write <- inputPackage{in, GetCurrentTimestamp()};
 			default:
 				idMap[in.orderId] = in.instrument
 				fmt.Fprintf(os.Stderr, "default")
 				fmt.Fprintf(os.Stderr, "Got order: %c %v x %v @ %v ID: %v\n",
 					in.orderType, in.instrument, in.count, in.price, in.orderId)
 				write, ok := instrumentChMap[in.instrument] 
-				if (!ok) {
+				if (!ok) { //may need a while here
 					writeCh <- in.instrument //1
 					newCh := <- readCh
 					instrumentChMap[newCh.instrumentName] = newCh.channel
 					write = newCh.channel
 				}
-				write <- in //4
+				write <- inputPackage{in, GetCurrentTimestamp()} //4
 
 			}
 			
@@ -79,7 +84,7 @@ func GetCurrentTimestamp() int64 {
 	return time.Now().UnixNano()
 }
 
-func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, tickerSlice *[]CommandTuple, ticker string) uint32 {
+func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, tickerSlice *[]CommandTuple, ticker string, time int64) uint32 {
 	fmt.Fprintf(os.Stderr, "findMatch\n")
 	fmt.Fprintf(os.Stderr, "%s", cmd)
 
@@ -108,11 +113,11 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 			// Active order has higher count
 			if amt >= (*tickerSlice)[bestIndex].count {
 				amt = amt - (*tickerSlice)[bestIndex].count
-				outputOrderExecuted((*tickerSlice)[bestIndex].id, activeID, (*tickerSlice)[bestIndex].exId, sellPrice, (*tickerSlice)[bestIndex].count, GetCurrentTimestamp())
+				outputOrderExecuted((*tickerSlice)[bestIndex].id, activeID, (*tickerSlice)[bestIndex].exId, sellPrice, (*tickerSlice)[bestIndex].count, time)
 				*tickerSlice = remove(*tickerSlice, bestIndex)
 			} else {
 				(*tickerSlice)[bestIndex].count -= amt
-				outputOrderExecuted((*tickerSlice)[bestIndex].id, activeID, (*tickerSlice)[bestIndex].exId, sellPrice, amt, GetCurrentTimestamp())
+				outputOrderExecuted((*tickerSlice)[bestIndex].id, activeID, (*tickerSlice)[bestIndex].exId, sellPrice, amt, time)
 				amt = 0
 			}
 		}
@@ -147,11 +152,11 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 			// Active order has higher count
 			if (amt >= (*tickerSlice)[bestIndex].count) {
 				amt = amt - (*tickerSlice)[bestIndex].count
-				outputOrderExecuted((*tickerSlice)[bestIndex].id, activeID, (*tickerSlice)[bestIndex].exId, buyPrice, (*tickerSlice)[bestIndex].count, GetCurrentTimestamp())
+				outputOrderExecuted((*tickerSlice)[bestIndex].id, activeID, (*tickerSlice)[bestIndex].exId, buyPrice, (*tickerSlice)[bestIndex].count, time)
 				*tickerSlice = remove(*tickerSlice, bestIndex)
 			} else {
 				(*tickerSlice)[bestIndex].count -= amt
-				outputOrderExecuted((*tickerSlice)[bestIndex].id, activeID, (*tickerSlice)[bestIndex].exId, buyPrice, amt, GetCurrentTimestamp())
+				outputOrderExecuted((*tickerSlice)[bestIndex].id, activeID, (*tickerSlice)[bestIndex].exId, buyPrice, amt, time)
 				amt = 0
 			}
 		}
@@ -170,7 +175,9 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 	}
 }
 
-func handleOrder(in input, tickerSlice *[]CommandTuple) {
+func handleOrder(order inputPackage, tickerSlice *[]CommandTuple) {
+	in := order.in
+	time := order.timestamp
 	fmt.Fprintf(os.Stderr, "handleOrder")
 	cmd := in.orderType
 	id := in.orderId
@@ -180,20 +187,20 @@ func handleOrder(in input, tickerSlice *[]CommandTuple) {
 	if cmd == 'C' {
 		for i := 0; i<len(*tickerSlice); i++ {
 		    if ((*tickerSlice)[i].id == id) {
-				outputOrderDeleted(in, true, GetCurrentTimestamp())
+				outputOrderDeleted(in, true, time)
 				found = true
 				*tickerSlice = remove(*tickerSlice, i)
 				break
 			}
 		}
 		if !found {
-			outputOrderDeleted(in, false, GetCurrentTimestamp())
+			outputOrderDeleted(in, false, time)
 		}
 		return
 	}
 	for num > 0 {
 		prevNum := num
-		num = findMatch(cmd, price, num, id, tickerSlice, in.instrument)
+		num = findMatch(cmd, price, num, id, tickerSlice, in.instrument, time)
 		if (num == prevNum) {
 			break
 		}
@@ -204,12 +211,12 @@ func handleOrder(in input, tickerSlice *[]CommandTuple) {
 		fmt.Fprintf(os.Stderr, "Before appending length: %s", len(*tickerSlice))
 		*tickerSlice = append(*tickerSlice, tup)
 		fmt.Fprintf(os.Stderr, "After Appending Length: %s", len(*tickerSlice))
-		outputOrderAdded(in, GetCurrentTimestamp())
+		outputOrderAdded(in, time)
 	}
 
 }
 
-func readChannel(ch chan input) {
+func readChannel(ch chan inputPackage) {
 	fmt.Fprintf(os.Stderr, "readChannel")
 	tickerSlice := []CommandTuple{}
 	for {

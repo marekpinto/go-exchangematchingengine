@@ -13,7 +13,7 @@ import (
 
 type InstrumentChannel struct {
     instrumentName string
-    channel chan input
+    channel chan inputPackage
 }
 
 func handleSigs(cancel func()) {
@@ -50,7 +50,7 @@ func main() {
 		}
 	}()
 
-	instrumentChMap := make(map[string] chan input)
+	instrumentChMap := make(map[string] chan inputPackage)
 	clientWriteChSlice := []chan InstrumentChannel{}
 	clientReadCh := make(chan string, 20)
 	newClientCh := make(chan chan InstrumentChannel, 20)
@@ -60,7 +60,7 @@ func main() {
 			select {
 			case instrument := <-clientReadCh:
 				fmt.Fprintf(os.Stderr, "INSTRUMENT case met")
-				instrumentCh := make(chan input, 20)
+				instrumentCh := make(chan inputPackage, 20)
 				go readChannel(instrumentCh)
 				instrumentChMap[instrument] = instrumentCh
 				for _, client := range clientWriteChSlice {
