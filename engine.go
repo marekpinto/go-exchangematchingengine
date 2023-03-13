@@ -191,6 +191,8 @@ func handleOrder(order inputPackage, tickerSlice *[]CommandTuple) {
 	num := in.count
 	found := false
 	if cmd == 'C' {
+		fmt.Fprintf(os.Stderr, "id: %d", id)
+		fmt.Fprintf(os.Stderr, "length: %d", len(*tickerSlice))
 		for i := 0; i<len(*tickerSlice); i++ {
 		    if ((*tickerSlice)[i].id == id) {
 				outputOrderDeleted(in, true, time)
