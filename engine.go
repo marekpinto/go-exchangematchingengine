@@ -180,8 +180,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 	}
 }
 
-func handleOrder(order inputPackage, tickerSlice *[]CommandTuple, done chan bool) {
-	defer close(done)
+func handleOrder(order inputPackage, tickerSlice *[]CommandTuple) {
 	in := order.in
 	time := order.timestamp
 	fmt.Fprintf(os.Stderr, "handleOrder")
@@ -231,9 +230,7 @@ func readChannel(ch chan inputPackage) {
 		select {
 			case inputVar := <-ch:
 			fmt.Fprintf(os.Stderr, "\nActually Read from channel\n")
-			done := make(chan bool) // Create a channel to signal when handleOrder has completed
-			go handleOrder(inputVar, &tickerSlice, done)
-			<-done
+			handleOrder(inputVar, &tickerSlice)
 	  }
 	}
 }
