@@ -54,14 +54,12 @@ func main() {
 	clientWriteChSlice := []chan InstrumentChannel{}
 	clientReadCh := make(chan string, 500)
 	newClientCh := make(chan chan InstrumentChannel, 45)
-	fmt.Fprintf(os.Stderr, "calling goFunc")
 	go func() {
 		for {
 			select {
 			case instrument := <-clientReadCh:
 				_, ok := instrumentChMap[instrument]
 				if (!ok) {
-					fmt.Fprintf(os.Stderr, "INSTRUMENT case met")
 					instrumentCh := make(chan inputPackage, 200)
 					go readChannel(instrumentCh)
 					instrumentChMap[instrument] = instrumentCh
@@ -70,15 +68,12 @@ func main() {
 					}
 				}
 			case newWriteCh := <- newClientCh:
-				fmt.Fprintf(os.Stderr, "\nStart of new Write Case\n")
 				clientWriteChSlice = append(clientWriteChSlice, newWriteCh)
 				
 				for instrument, instrumentCh := range instrumentChMap {
 					newWriteCh <- InstrumentChannel{instrument, instrumentCh}
 				}
-				fmt.Fprintf(os.Stderr, "\nEnd of new Write Case\n")
 			default:
-				//fmt.Fprintf(os.Stderr, "In main for select")
 				time.Sleep(time.Millisecond)
 			}
 		}
