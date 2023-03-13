@@ -37,7 +37,7 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 	defer conn.Close()
 	instrumentChMap := make(map[string] chan inputPackage)
 	idMap := make(map[uint32] string)
-	readCh := make(chan InstrumentChannel, 100)
+	readCh := make(chan InstrumentChannel, 500)
 	newClientCh <- readCh
 
 	for {
@@ -60,10 +60,9 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 				instrument := idMap[in.orderId]
 				write, ok := instrumentChMap[instrument]
 				for (!ok) { //may need a while here
-					writeCh <- in.instrument //1
 					newCh := <- readCh
 					instrumentChMap[newCh.instrumentName] = newCh.channel
-					write, ok = instrumentChMap[in.instrument]
+					write, ok = instrumentChMap[instrument]
 				}
 				write <- inputPackage{in, GetCurrentTimestamp()};
 			default:
@@ -181,7 +180,8 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 	}
 }
 
-func handleOrder(order inputPackage, tickerSlice *[]CommandTuple) {
+func handleOrder(order inputPackage, tickerSlice *[]CommandTuple, done chan bool) {
+	defer close(done)
 	in := order.in
 	time := order.timestamp
 	fmt.Fprintf(os.Stderr, "handleOrder")
@@ -231,7 +231,9 @@ func readChannel(ch chan inputPackage) {
 		select {
 			case inputVar := <-ch:
 			fmt.Fprintf(os.Stderr, "\nActually Read from channel\n")
-			handleOrder(inputVar, &tickerSlice)
+			done := make(chan bool) // Create a channel to signal when handleOrder has completed
+			go handleOrder(inputVar, &tickerSlice, done)
+			<-done
 	  }
 	}
 }
