@@ -98,8 +98,8 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 
 		// Find best match
 
-		for i := 0; i < len(*tickerSlice); i++ {
-			if ((*tickerSlice)[i].cmd == 'S' && (*tickerSlice)[i].price < sellPrice) {
+		for i := len(*tickerSlide) - 1; 0 <= i; i-- {
+			if ((*tickerSlice)[i].cmd == 'S' && (*tickerSlice)[i].price <= sellPrice) {
 				sellPrice = (*tickerSlice)[i].price
 				bestIndex = i
 			}
@@ -137,8 +137,8 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 
 		// Find best match
 		fmt.Fprintf(os.Stderr, "Length before for loop: %d", len(*tickerSlice))
-		for i := 0; i < len(*tickerSlice); i++ {
-			if ((*tickerSlice)[i].cmd == 'B' && (*tickerSlice)[i].price > buyPrice) {
+		for i := len(*tickerSlice) - 1; i >= 0; i-- {
+			if ((*tickerSlice)[i].cmd == 'B' && (*tickerSlice)[i].price >= buyPrice) {
 				buyPrice = (*tickerSlice)[i].price
 				bestIndex = i
 			}
