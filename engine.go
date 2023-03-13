@@ -58,7 +58,13 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 				fmt.Fprintf(os.Stderr, "Got cancel ID: %v\n", in.orderId)
 				//outputOrderDeleted(in, true, GetCurrentTimestamp())
 				instrument := idMap[in.orderId]
-				write := instrumentChMap[instrument]
+				write, ok := instrumentChMap[instrument]
+				for (!ok) { //may need a while here
+					writeCh <- in.instrument //1
+					newCh := <- readCh
+					instrumentChMap[newCh.instrumentName] = newCh.channel
+					write, ok = instrumentChMap[in.instrument]
+				}
 				write <- inputPackage{in, GetCurrentTimestamp()};
 			default:
 				idMap[in.orderId] = in.instrument
@@ -66,11 +72,11 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 				fmt.Fprintf(os.Stderr, "Got order: %c %v x %v @ %v ID: %v\n",
 					in.orderType, in.instrument, in.count, in.price, in.orderId)
 				write, ok := instrumentChMap[in.instrument] 
-				if (!ok) { //may need a while here
+				for (!ok) { //may need a while here
 					writeCh <- in.instrument //1
 					newCh := <- readCh
 					instrumentChMap[newCh.instrumentName] = newCh.channel
-					write = newCh.channel
+					write, ok = instrumentChMap[in.instrument]
 				}
 				write <- inputPackage{in, GetCurrentTimestamp()} //4
 
