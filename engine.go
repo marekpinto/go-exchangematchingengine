@@ -98,7 +98,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 
 		// Find best match
 
-		for i := len(*tickerSlide) - 1; 0 <= i; i-- {
+		for i := len(*tickerSlice) - 1; 0 <= i; i-- {
 			if ((*tickerSlice)[i].cmd == 'S' && (*tickerSlice)[i].price <= sellPrice) {
 				sellPrice = (*tickerSlice)[i].price
 				bestIndex = i
