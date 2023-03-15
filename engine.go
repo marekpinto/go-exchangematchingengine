@@ -52,14 +52,12 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 				}
 				return
 			}
-			fmt.Fprintf(os.Stderr, "before switch")
 			switch in.orderType {
 			case inputCancel:
 				fmt.Fprintf(os.Stderr, "Got cancel ID: %v\n", in.orderId)
-				//outputOrderDeleted(in, true, GetCurrentTimestamp())
 				instrument := idMap[in.orderId]
 				write, ok := instrumentChMap[instrument]
-				for (!ok) { //may need a while here
+				for (!ok) { 
 					newCh := <- readCh
 					instrumentChMap[newCh.instrumentName] = newCh.channel
 					write, ok = instrumentChMap[instrument]
@@ -67,17 +65,16 @@ func handleConn(conn net.Conn, writeCh chan <- string, newClientCh chan <- chan 
 				write <- inputPackage{in, GetCurrentTimestamp()};
 			default:
 				idMap[in.orderId] = in.instrument
-				fmt.Fprintf(os.Stderr, "default")
 				fmt.Fprintf(os.Stderr, "Got order: %c %v x %v @ %v ID: %v\n",
 					in.orderType, in.instrument, in.count, in.price, in.orderId)
 				write, ok := instrumentChMap[in.instrument] 
-				for (!ok) { //may need a while here
-					writeCh <- in.instrument //1
+				for (!ok) { 
+					writeCh <- in.instrument
 					newCh := <- readCh
 					instrumentChMap[newCh.instrumentName] = newCh.channel
 					write, ok = instrumentChMap[in.instrument]
 				}
-				write <- inputPackage{in, GetCurrentTimestamp()} //4
+				write <- inputPackage{in, GetCurrentTimestamp()}
 
 			}
 			
@@ -90,13 +87,10 @@ func GetCurrentTimestamp() int64 {
 }
 
 func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, tickerSlice *[]CommandTuple, ticker string, time int64) uint32 {
-	fmt.Fprintf(os.Stderr, "findMatch\n")
-	fmt.Fprintf(os.Stderr, "%s", cmd)
 
     switch cmd {
 		
     case 'B': 
-		fmt.Fprintf(os.Stderr, "reached buy case")
 		sellPrice := price
 		bestIndex := -1
 		amt := count
@@ -132,8 +126,7 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 			If amt = prev, order found no match
 			if amt < prev, order matched with resting and looks again
 		*/
-		return amt
-	
+		return amt	
         
     case 'S': 
 		buyPrice := price
@@ -141,7 +134,6 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 		amt := count
 
 		// Find best match
-		fmt.Fprintf(os.Stderr, "Length before for loop: %d", len(*tickerSlice))
 		for i := len(*tickerSlice) - 1; i >= 0; i-- {
 			if ((*tickerSlice)[i].cmd == 'B' && (*tickerSlice)[i].price >= buyPrice) {
 				buyPrice = (*tickerSlice)[i].price
@@ -183,15 +175,12 @@ func findMatch(cmd inputType, price uint32, count uint32, activeID uint32, ticke
 func handleOrder(order inputPackage, tickerSlice *[]CommandTuple) {
 	in := order.in
 	time := order.timestamp
-	fmt.Fprintf(os.Stderr, "handleOrder")
 	cmd := in.orderType
 	id := in.orderId
 	price := in.price
 	num := in.count
 	found := false
 	if cmd == 'C' {
-		fmt.Fprintf(os.Stderr, "id: %d", id)
-		fmt.Fprintf(os.Stderr, "length: %d", len(*tickerSlice))
 		for i := 0; i<len(*tickerSlice); i++ {
 		    if ((*tickerSlice)[i].id == id) {
 				outputOrderDeleted(in, true, time)
@@ -215,21 +204,17 @@ func handleOrder(order inputPackage, tickerSlice *[]CommandTuple) {
 
 	if (num != 0) {
 		tup := CommandTuple{cmd, id, price, num, 0}
-		fmt.Fprintf(os.Stderr, "Before appending length: %s", len(*tickerSlice))
 		*tickerSlice = append(*tickerSlice, tup)
-		fmt.Fprintf(os.Stderr, "After Appending Length: %s", len(*tickerSlice))
 		outputOrderAdded(in, time)
 	}
 
 }
 
 func readChannel(ch chan inputPackage) {
-	fmt.Fprintf(os.Stderr, "readChannel")
 	tickerSlice := []CommandTuple{}
 	for {
 		select {
 			case inputVar := <-ch:
-			fmt.Fprintf(os.Stderr, "\nActually Read from channel\n")
 			handleOrder(inputVar, &tickerSlice)
 	  }
 	}
